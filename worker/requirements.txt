@@ -1,0 +1,2 @@
+aiokafka~=0.7.1
+aiohttp~=3.7.4

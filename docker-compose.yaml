@@ -1,0 +1,58 @@
+version: '2'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    restart: always
+#    ports:
+#      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    restart: always
+#    ports:
+#      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_CREATE_TOPICS: "wb-category:3:1,wb-products:3:1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+  worker:
+    build: ./worker
+    image: worker:1.0
+    container_name: worker
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      ROW_MESSAGE_TOPIC: $ROW_MESSAGE_TOPIC
+      BOOTSTRAP_SERVERS: $BOOTSTRAP_SERVERS
+    ports:
+      - 8080:8080
+    depends_on:
+      - "kafka"
+    volumes:
+      - logs:/home/worker/logs
+
+  parser:
+    build: ./parser
+    image: parser:1.0
+#    container_name: parser
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      ROW_MESSAGE_TOPIC: $ROW_MESSAGE_TOPIC
+      PROCESSED_MESSAGE_TOPIC: $PROCESSED_MESSAGE_TOPIC
+      GROUP_ID: $GROUP_ID
+      BOOTSTRAP_SERVERS: $BOOTSTRAP_SERVERS
+      AUTO_OFFSET_RESET: $AUTO_OFFSET_RESET
+      POLL_TIMEOUT: $POLL_TIMEOUT
+    depends_on:
+      - "kafka"
+
+    volumes:
+    - logs:/home/parser/logs
+
+volumes:
+  logs:
