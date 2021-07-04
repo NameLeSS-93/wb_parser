@@ -1,15 +1,19 @@
 import os
+import re
 import sys
 import json
 import logging
 from urllib.parse import urlparse
 
 import aiohttp
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
 from aiohttp import web, request
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError, KafkaTimeoutError
 
 from utils import json_extract, serializer
+from json_schema import request_schema
 
 
 logging.basicConfig(filename='./logs/worker.log', level=logging.INFO, format='%(asctime)s %(levelname)s | %(message)s')
@@ -23,8 +27,8 @@ def load_settings() -> dict:
     """
     try:
         conf = dict(
-            ROW_MESSAGE_TOPIC=os.environ['ROW_MESSAGE_TOPIC'],
-            BOOTSTRAP_SERVERS=os.environ['BOOTSTRAP_SERVERS'].split(';'),
+            # ROW_MESSAGE_TOPIC=os.environ['ROW_MESSAGE_TOPIC'],
+            # BOOTSTRAP_SERVERS=os.environ['BOOTSTRAP_SERVERS'].split(';'),
         )
         return conf
     except KeyError as e:
@@ -44,14 +48,23 @@ async def handle(request: request) -> web.json_response:
     Returns:
         [web.json_response]: [json response]
     """
-    body = await request.json()
     try:
-        url = body['url']
-        logging.info(f'Received url: {url}')
-    except KeyError:
-        logging.warning('Incorrect JSON sent: no "url" key')
-        return web.json_response(dict(success=False, message='Incorrect JSON sent: no "url" key'), status=400)
+        body = await request.json()
+    except json.decoder.JSONDecodeError as e:
+        logging.error('Request body is not a valid JSON')
+        return web.json_response(dict(success=False, message='Request body is not a valid JSON'), status=400)
 
+    try:
+        validate(body, schema=request_schema)
+    except ValidationError as e:
+        wrong_key = re.findall('(\'.+\') is a required property', e.__str__())
+        if wrong_key:
+            logging.warning(f'{str(*wrong_key)} key is required')
+            return web.json_response(dict(success=False, message=f'{str(*wrong_key)} key is required'), status=400)
+        logging.warning('url data type is not a string')
+        return web.json_response(dict(success=False, message='url data type is not a string'), status=400)
+
+    url = body['url']
     parsed_url = urlparse(url)
     path = parsed_url.path
 
