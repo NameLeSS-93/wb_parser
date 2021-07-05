@@ -27,8 +27,8 @@ def load_settings() -> dict:
     """
     try:
         conf = dict(
-            # ROW_MESSAGE_TOPIC=os.environ['ROW_MESSAGE_TOPIC'],
-            # BOOTSTRAP_SERVERS=os.environ['BOOTSTRAP_SERVERS'].split(';'),
+            ROW_MESSAGE_TOPIC=os.environ['ROW_MESSAGE_TOPIC'],
+            BOOTSTRAP_SERVERS=os.environ['BOOTSTRAP_SERVERS'].split(';'),
         )
         return conf
     except KeyError as e:
