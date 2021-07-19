@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM snakepacker/python:all as builder
 
 RUN python3.7 -m venv /usr/share/python3/app
